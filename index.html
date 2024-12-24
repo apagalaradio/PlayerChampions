@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Player Champions</title>
+    <script>
+        async function fetchData(playerName) {
+            const limit = 500;
+            let offset = 0;
+            let allData = [];
+            let championsCount = {};
+
+            while (true) {
+                const url = `https://lol.fandom.com/api.php?action=cargoquery&tables=ScoreboardPlayers&fields=Name,Champion,PlayerWin,GameId,Team,TeamVs,DateTime_UTC&where=Name%20LIKE%20'${encodeURIComponent(playerName)}'&limit=${limit}&format=json&origin=*&offset=${offset}`;
+
+                try {
+                    const response = await fetch(url);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+
+                    console.log("Datos obtenidos:", data);
+
+                    if (data.cargoquery.length === 0) {
+                        break;
+                    }
+
+                    const currentBatch = data.cargoquery.map(item => item.title);
+                    allData = allData.concat(currentBatch);
+
+                    if (currentBatch.length < limit) {
+                        break;
+                    }
+
+                    offset += limit;
+                } catch (error) {
+                    console.error(`Error fetching data: ${error.message}`);
+                    break;
+                }
+            }
+
+            // Ordenar los datos por "DateTime UTC"
+            allData.sort((a, b) => new Date(a["DateTime UTC"]) - new Date(b["DateTime UTC"]));
+
+            // Contar la cantidad de veces que aparece cada campeón
+            allData.forEach(item => {
+                const champion = item.Champion;
+                if (championsCount[champion]) {
+                    championsCount[champion]++;
+                } else {
+                    championsCount[champion] = 1;
+                }
+            });
+
+            // Ordenar el resumen de campeones por cantidad de mayor a menor
+            const sortedChampions = Object.entries(championsCount).sort((a, b) => b[1] - a[1]);
+
+            displayData(sortedChampions, allData);
+        }
+
+        function displayData(sortedChampions, data) {
+            const resultDiv = document.getElementById("results");
+            resultDiv.innerHTML = "";
+
+            if (data.length === 0) {
+                resultDiv.innerHTML = "<p>No se encontraron resultados.</p>";
+                return;
+            }
+
+            // Crear la tabla de resumen por campeón, ordenada por cantidad
+            const summaryTable = document.createElement("table");
+            summaryTable.border = "1";
+            const summaryHeaderRow = summaryTable.insertRow();
+            ["No.", "Champion", "Cantidad"].forEach(header => {
+                const cell = summaryHeaderRow.insertCell();
+                cell.textContent = header;
+            });
+
+            // Agregar el número (No.) a cada fila en la tabla de resumen
+            sortedChampions.forEach(([champion, count], index) => {
+                const row = summaryTable.insertRow();
+                const noCell = row.insertCell();
+                noCell.textContent = index + 1; // Número de campeón
+                const championCell = row.insertCell();
+                championCell.textContent = champion;
+                const countCell = row.insertCell();
+                countCell.textContent = count;
+            });
+
+            resultDiv.appendChild(summaryTable);
+
+            // Crear la tabla de datos filtrados (con contador)
+            const table = document.createElement("table");
+            table.border = "1";
+            const headerRow = table.insertRow();
+            ["No.", "Name", "Champion", "PlayerWin", "GameId", "Team", "TeamVs", "DateTime UTC"].forEach(header => {
+                const cell = headerRow.insertCell();
+                cell.textContent = header;
+            });
+
+            data.forEach((item, index) => {
+                const row = table.insertRow();
+                const noCell = row.insertCell();
+                noCell.textContent = index + 1; // Número de fila (contador)
+
+                ["Name", "Champion", "PlayerWin", "GameId", "Team", "TeamVs", "DateTime UTC"].forEach(key => {
+                    const cell = row.insertCell();
+                    cell.textContent = item[key] !== undefined && item[key] !== null ? item[key] : "N/A";
+                });
+            });
+
+            resultDiv.appendChild(table);
+        }
+
+        function handleSearch() {
+            const playerName = document.getElementById("playerName").value.trim();
+
+            if (!playerName) {
+                alert("Por favor, ingresa el nombre del jugador.");
+                return;
+            }
+
+            fetchData(playerName);
+        }
+    </script>
+</head>
+<body>
+    <h1>Player Champions</h1>
+    <div>
+        <label for="playerName">Player Name:</label>
+        <input type="text" id="playerName" placeholder="Ingresa el nombre">
+    </div>
+    <button onclick="handleSearch()">Buscar</button>
+
+    <div id="results"></div>
+</body>
+</html>
