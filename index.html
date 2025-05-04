@@ -1,140 +1,233 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Player Champions</title>
-    <script>
-        async function fetchData(playerName) {
-            const limit = 500;
-            let offset = 0;
-            let allData = [];
-            let championsCount = {};
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Player Champions</title>
+  <script>
+    let allGameData = [];
+    let summarySortAsc = true;
+    let championSortAsc = true;
+    let countSortAsc = true;
+    let winrateSortAsc = true;
 
-            while (true) {
-                const url = `https://lol.fandom.com/api.php?action=cargoquery&tables=ScoreboardPlayers&fields=Name,Champion,PlayerWin,GameId,Team,TeamVs,DateTime_UTC&where=Name%20LIKE%20'${encodeURIComponent(playerName)}'&limit=${limit}&format=json&origin=*&offset=${offset}`;
+    async function fetchData(playerName) {
+      const limit = 500;
+      let offset = 0;
+      let allData = [];
+      let championsCount = {};
 
-                try {
-                    const response = await fetch(url);
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
+      while (true) {
+        const url = `https://lol.fandom.com/api.php?action=cargoquery&tables=ScoreboardPlayers&fields=Name,Champion,PlayerWin,GameId,Team,TeamVs,DateTime_UTC&where=Name%20LIKE%20'${encodeURIComponent(playerName)}'&limit=${limit}&format=json&origin=*&offset=${offset}`;
+        try {
+          const response = await fetch(url);
+          if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
-                    const data = await response.json();
+          const data = await response.json();
+          if (data.cargoquery.length === 0) break;
 
-                    console.log("Datos obtenidos:", data);
+          const currentBatch = data.cargoquery.map(item => item.title);
+          allData = allData.concat(currentBatch);
 
-                    if (data.cargoquery.length === 0) {
-                        break;
-                    }
-
-                    const currentBatch = data.cargoquery.map(item => item.title);
-                    allData = allData.concat(currentBatch);
-
-                    if (currentBatch.length < limit) {
-                        break;
-                    }
-
-                    offset += limit;
-                } catch (error) {
-                    console.error(`Error fetching data: ${error.message}`);
-                    break;
-                }
-            }
-
-            // Ordenar los datos por "DateTime UTC"
-            allData.sort((a, b) => new Date(a["DateTime UTC"]) - new Date(b["DateTime UTC"]));
-
-            // Contar la cantidad de veces que aparece cada campeón
-            allData.forEach(item => {
-                const champion = item.Champion;
-                if (championsCount[champion]) {
-                    championsCount[champion]++;
-                } else {
-                    championsCount[champion] = 1;
-                }
-            });
-
-            // Ordenar el resumen de campeones por cantidad de mayor a menor
-            const sortedChampions = Object.entries(championsCount).sort((a, b) => b[1] - a[1]);
-
-            displayData(sortedChampions, allData);
+          if (currentBatch.length < limit) break;
+          offset += limit;
+        } catch (error) {
+          console.error(`Error fetching data: ${error.message}`);
+          break;
         }
+      }
 
-        function displayData(sortedChampions, data) {
-            const resultDiv = document.getElementById("results");
-            resultDiv.innerHTML = "";
+      allData.sort((a, b) => new Date(a["DateTime UTC"]) - new Date(b["DateTime UTC"]));
+      allGameData = allData;
 
-            if (data.length === 0) {
-                resultDiv.innerHTML = "<p>No se encontraron resultados.</p>";
-                return;
-            }
-
-            // Crear la tabla de resumen por campeón, ordenada por cantidad
-            const summaryTable = document.createElement("table");
-            summaryTable.border = "1";
-            const summaryHeaderRow = summaryTable.insertRow();
-            ["No.", "Champion", "Cantidad"].forEach(header => {
-                const cell = summaryHeaderRow.insertCell();
-                cell.textContent = header;
-            });
-
-            // Agregar el número (No.) a cada fila en la tabla de resumen
-            sortedChampions.forEach(([champion, count], index) => {
-                const row = summaryTable.insertRow();
-                const noCell = row.insertCell();
-                noCell.textContent = index + 1; // Número de campeón
-                const championCell = row.insertCell();
-                championCell.textContent = champion;
-                const countCell = row.insertCell();
-                countCell.textContent = count;
-            });
-
-            resultDiv.appendChild(summaryTable);
-
-            // Crear la tabla de datos filtrados (con contador)
-            const table = document.createElement("table");
-            table.border = "1";
-            const headerRow = table.insertRow();
-            ["No.", "Name", "Champion", "PlayerWin", "GameId", "Team", "TeamVs", "DateTime UTC"].forEach(header => {
-                const cell = headerRow.insertCell();
-                cell.textContent = header;
-            });
-
-            data.forEach((item, index) => {
-                const row = table.insertRow();
-                const noCell = row.insertCell();
-                noCell.textContent = index + 1; // Número de fila (contador)
-
-                ["Name", "Champion", "PlayerWin", "GameId", "Team", "TeamVs", "DateTime UTC"].forEach(key => {
-                    const cell = row.insertCell();
-                    cell.textContent = item[key] !== undefined && item[key] !== null ? item[key] : "N/A";
-                });
-            });
-
-            resultDiv.appendChild(table);
+      allData.forEach(item => {
+        const champion = item.Champion;
+        if (!championsCount[champion]) {
+          championsCount[champion] = { total: 0, wins: 0, losses: 0 };
         }
-
-        function handleSearch() {
-            const playerName = document.getElementById("playerName").value.trim();
-
-            if (!playerName) {
-                alert("Por favor, ingresa el nombre del jugador.");
-                return;
-            }
-
-            fetchData(playerName);
+        championsCount[champion].total += 1;
+        if (item.PlayerWin === "Yes") {
+          championsCount[champion].wins += 1;
+        } else if (item.PlayerWin === "No") {
+          championsCount[champion].losses += 1;
         }
-    </script>
+      });
+
+      const sortedChampions = Object.entries(championsCount).sort((a, b) => b[1].total - a[1].total);
+
+      displayData(sortedChampions, allData);
+      populateChampionDropdown(sortedChampions);
+      resetFilters();
+    }
+
+    function displayData(sortedChampions, data) {
+      const resultDiv = document.getElementById("results");
+      resultDiv.innerHTML = "";
+
+      const summaryTable = document.createElement("table");
+      summaryTable.border = "1";
+      summaryTable.id = "summaryTable";
+      const summaryHeaderRow = summaryTable.insertRow();
+
+      const headers = ["No.", "Champion", "Cantidad", "Victorias", "Derrotas", "Winrate (%)"];
+      headers.forEach((header, index) => {
+        const cell = summaryHeaderRow.insertCell();
+        cell.textContent = header;
+        cell.style.cursor = "pointer";
+        cell.title = "Click para ordenar";
+        cell.onclick = () => toggleSortSummaryTable(index);
+      });
+
+      sortedChampions.forEach(([champion, stats], index) => {
+        const row = summaryTable.insertRow();
+        row.insertCell().textContent = index + 1;
+        row.insertCell().textContent = champion;
+        row.insertCell().textContent = stats.total;
+        row.insertCell().textContent = stats.wins;
+        row.insertCell().textContent = stats.losses;
+        const winrate = stats.total > 0 ? ((stats.wins / stats.total) * 100).toFixed(2) : "0.00";
+        row.insertCell().textContent = winrate;
+      });
+
+      resultDiv.appendChild(summaryTable);
+
+      const detailDiv = document.createElement("div");
+      detailDiv.id = "detailContainer";
+      resultDiv.appendChild(detailDiv);
+
+      displayDetailedTable(data);
+    }
+
+    function toggleSortSummaryTable(colIndex) {
+      const summaryTable = document.getElementById("summaryTable");
+      const rows = Array.from(summaryTable.rows).slice(1); // Exclude header
+
+      rows.sort((a, b) => {
+        const cellA = a.cells[colIndex].textContent;
+        const cellB = b.cells[colIndex].textContent;
+
+        if (colIndex === 1) {
+          return championSortAsc ? cellA.localeCompare(cellB) : cellB.localeCompare(cellA);
+        } else if ([2, 3, 4].includes(colIndex)) {
+          const numA = parseInt(cellA);
+          const numB = parseInt(cellB);
+          return countSortAsc ? numA - numB : numB - numA;
+        } else if (colIndex === 5) {
+          const numA = parseFloat(cellA);
+          const numB = parseFloat(cellB);
+          return winrateSortAsc ? numA - numB : numB - numA;
+        } else {
+          const numA = parseInt(cellA);
+          const numB = parseInt(cellB);
+          return summarySortAsc ? numA - numB : numB - numA;
+        }
+      });
+
+      if (colIndex === 0) summarySortAsc = !summarySortAsc;
+      if (colIndex === 1) championSortAsc = !championSortAsc;
+      if ([2, 3, 4].includes(colIndex)) countSortAsc = !countSortAsc;
+      if (colIndex === 5) winrateSortAsc = !winrateSortAsc;
+
+      rows.forEach(row => summaryTable.appendChild(row));
+    }
+
+    function displayDetailedTable(data) {
+      const container = document.getElementById("detailContainer");
+      container.innerHTML = "";
+
+      const table = document.createElement("table");
+      table.border = "1";
+      const headerRow = table.insertRow();
+      ["No.", "Name", "Champion", "PlayerWin", "GameId", "Team", "TeamVs", "DateTime UTC"].forEach(header => {
+        const cell = headerRow.insertCell();
+        cell.textContent = header;
+      });
+
+      data.forEach((item, index) => {
+        const row = table.insertRow();
+        row.insertCell().textContent = index + 1;
+        ["Name", "Champion", "PlayerWin", "GameId", "Team", "TeamVs", "DateTime UTC"].forEach(key => {
+          const cell = row.insertCell();
+          cell.textContent = item[key] ?? "N/A";
+        });
+      });
+
+      container.appendChild(table);
+    }
+
+    function populateChampionDropdown(championsList) {
+      const select = document.getElementById("championSelect");
+      select.innerHTML = '<option value="">-- Filtrar por Champion --</option>';
+
+      championsList.forEach(([champion]) => {
+        const option = document.createElement("option");
+        option.value = champion;
+        option.textContent = champion;
+        select.appendChild(option);
+      });
+
+      select.style.display = "inline";
+      document.getElementById("playerWinSelect").style.display = "inline";
+    }
+
+    function applyFilters() {
+      const selectedChampion = document.getElementById("championSelect").value;
+      const selectedWin = document.getElementById("playerWinSelect").value;
+
+      let filteredData = allGameData;
+
+      if (selectedChampion) {
+        filteredData = filteredData.filter(item => item.Champion === selectedChampion);
+      }
+
+      if (selectedWin) {
+        filteredData = filteredData.filter(item => item.PlayerWin === selectedWin);
+      }
+
+      displayDetailedTable(filteredData);
+    }
+
+    function resetFilters() {
+      document.getElementById("championSelect").value = "";
+      document.getElementById("playerWinSelect").value = "";
+    }
+
+    function handleSearch() {
+      const playerName = document.getElementById("playerName").value.trim();
+      if (!playerName) {
+        alert("Por favor, ingresa el nombre del jugador.");
+        return;
+      }
+
+      document.getElementById("championSelect").style.display = "none";
+      document.getElementById("playerWinSelect").style.display = "none";
+
+      fetchData(playerName);
+    }
+  </script>
 </head>
 <body>
-    <h1>Player Champions</h1>
-    <div>
-        <label for="playerName">Player Name:</label>
-        <input type="text" id="playerName" placeholder="Ingresa el nombre">
-    </div>
+  <h1>Player Champions</h1>
+  <div>
+    <label for="playerName">Player Name:</label>
+    <input type="text" id="playerName" placeholder="Ingresa el nombre">
     <button onclick="handleSearch()">Buscar</button>
+  </div>
 
-    <div id="results"></div>
+  <div>
+    <label for="championSelect">Filtrar por Champion:</label>
+    <select id="championSelect" onchange="applyFilters()" style="display:none;"></select>
+  </div>
+
+  <div>
+    <label for="playerWinSelect">Filtrar por PlayerWin:</label>
+    <select id="playerWinSelect" onchange="applyFilters()" style="display:none;">
+      <option value="">-- Todos --</option>
+      <option value="Yes">Yes</option>
+      <option value="No">No</option>
+    </select>
+  </div>
+
+  <div id="results"></div>
 </body>
 </html>
