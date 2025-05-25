@@ -10,6 +10,8 @@
     let championSortAsc = true;
     let countSortAsc = true;
     let winrateSortAsc = true;
+    let detailSortAsc = true;
+    let detailSortColumn = 0;
 
     async function fetchData(playerName) {
       const limit = 500;
@@ -69,12 +71,12 @@
       summaryTable.id = "summaryTable";
       const summaryHeaderRow = summaryTable.insertRow();
 
-      const headers = ["No.", "Champion", "Cantidad", "Victorias", "Derrotas", "Winrate (%)"];
+      const headers = ["No.", "Champion", "Count", "Wins", "Losses", "Winrate (%)"];
       headers.forEach((header, index) => {
         const cell = summaryHeaderRow.insertCell();
         cell.textContent = header;
         cell.style.cursor = "pointer";
-        cell.title = "Click para ordenar";
+        cell.title = "Click to sort";
         cell.onclick = () => toggleSortSummaryTable(index);
       });
 
@@ -100,7 +102,7 @@
 
     function toggleSortSummaryTable(colIndex) {
       const summaryTable = document.getElementById("summaryTable");
-      const rows = Array.from(summaryTable.rows).slice(1); // Exclude header
+      const rows = Array.from(summaryTable.rows).slice(1);
 
       rows.sort((a, b) => {
         const cellA = a.cells[colIndex].textContent;
@@ -137,27 +139,59 @@
 
       const table = document.createElement("table");
       table.border = "1";
+      table.id = "detailTable";
       const headerRow = table.insertRow();
-      ["No.", "Name", "Champion", "PlayerWin", "GameId", "Team", "TeamVs", "DateTime UTC"].forEach(header => {
+      const headers = ["No.", "DateTime UTC", "GameId", "Champion", "Team", "TeamVs", "Name", "PlayerWin"];
+      headers.forEach((header, index) => {
         const cell = headerRow.insertCell();
         cell.textContent = header;
+        cell.style.cursor = "pointer";
+        cell.title = "Click to sort";
+        cell.onclick = () => toggleSortDetailTable(index);
       });
 
       data.forEach((item, index) => {
         const row = table.insertRow();
+        if (item.PlayerWin === "Yes") {
+          row.style.backgroundColor = "#c8e6c9";
+        }
         row.insertCell().textContent = index + 1;
-        ["Name", "Champion", "PlayerWin", "GameId", "Team", "TeamVs", "DateTime UTC"].forEach(key => {
-          const cell = row.insertCell();
-          cell.textContent = item[key] ?? "N/A";
-        });
+        row.insertCell().textContent = item["DateTime UTC"] ?? "N/A";
+        row.insertCell().textContent = item["GameId"] ?? "N/A";
+        row.insertCell().textContent = item["Champion"] ?? "N/A";
+        row.insertCell().textContent = item["Team"] ?? "N/A";
+        row.insertCell().textContent = item["TeamVs"] ?? "N/A";
+        row.insertCell().textContent = item["Name"] ?? "N/A";
+        row.insertCell().textContent = item["PlayerWin"] ?? "N/A";
       });
 
       container.appendChild(table);
     }
 
+    function toggleSortDetailTable(colIndex) {
+      const table = document.getElementById("detailTable");
+      const rows = Array.from(table.rows).slice(1);
+      rows.sort((a, b) => {
+        const aText = a.cells[colIndex].textContent;
+        const bText = b.cells[colIndex].textContent;
+
+        const aVal = isNaN(aText) ? aText : parseFloat(aText);
+        const bVal = isNaN(bText) ? bText : parseFloat(bText);
+
+        if (aVal < bVal) return detailSortAsc ? -1 : 1;
+        if (aVal > bVal) return detailSortAsc ? 1 : -1;
+        return 0;
+      });
+
+      detailSortAsc = colIndex === detailSortColumn ? !detailSortAsc : true;
+      detailSortColumn = colIndex;
+
+      rows.forEach(row => table.appendChild(row));
+    }
+
     function populateChampionDropdown(championsList) {
       const select = document.getElementById("championSelect");
-      select.innerHTML = '<option value="">-- Filtrar por Champion --</option>';
+      select.innerHTML = '<option value="">-- Filter by Champion --</option>';
 
       championsList.forEach(([champion]) => {
         const option = document.createElement("option");
@@ -195,7 +229,7 @@
     function handleSearch() {
       const playerName = document.getElementById("playerName").value.trim();
       if (!playerName) {
-        alert("Por favor, ingresa el nombre del jugador.");
+        alert("Please enter a player name.");
         return;
       }
 
@@ -210,19 +244,19 @@
   <h1>Player Champions</h1>
   <div>
     <label for="playerName">Player Name:</label>
-    <input type="text" id="playerName" placeholder="Ingresa el nombre">
-    <button onclick="handleSearch()">Buscar</button>
+    <input type="text" id="playerName" placeholder="Enter name">
+    <button onclick="handleSearch()">Search</button>
   </div>
 
   <div>
-    <label for="championSelect">Filtrar por Champion:</label>
+    <label for="championSelect">Filter by Champion:</label>
     <select id="championSelect" onchange="applyFilters()" style="display:none;"></select>
   </div>
 
   <div>
-    <label for="playerWinSelect">Filtrar por PlayerWin:</label>
+    <label for="playerWinSelect">Filter by PlayerWin:</label>
     <select id="playerWinSelect" onchange="applyFilters()" style="display:none;">
-      <option value="">-- Todos --</option>
+      <option value="">-- All --</option>
       <option value="Yes">Yes</option>
       <option value="No">No</option>
     </select>
