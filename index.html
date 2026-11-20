@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Campeones jugados por un jugador (carrera completa)</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<h1>Campeones jugados por un jugador</h1>
+
+<div id="searchBox">
+  <input type="text" id="playerInput" placeholder="Nombre del jugador (ej. Faker, Chovy, Caps)">
+  <button id="searchBtn">Buscar</button>
+</div>
+
+<p id="status"></p>
+<p id="totalGames" style="display:none"></p>
+<table id="result" style="display:none">
+  <thead>
+    <tr>
+      <th data-key="champ" title="Ordenar por campeón">Campeón<span class="arrow"></span></th>
+      <th data-key="games" title="Ordenar por veces jugado">Veces jugado<span class="arrow"></span></th>
+      <th data-key="wins" title="Ordenar por victorias">Victorias<span class="arrow"></span></th>
+      <th data-key="losses" title="Ordenar por derrotas">Derrotas<span class="arrow"></span></th>
+      <th data-key="wr" title="Ordenar por winrate">Winrate<span class="arrow"></span></th>
+    </tr>
+  </thead>
+  <tbody id="tbody"></tbody>
+</table>
+<p id="note" style="display:none">
+  Datos combinados de las tablas "por campeón" (columnas Champion / G / W) de cada
+  torneo, en todas las páginas anuales de estadísticas del jugador que existan
+  en Leaguepedia.
+</p>
+
+<script src="script.js"></script>
+</body>
+</html>
